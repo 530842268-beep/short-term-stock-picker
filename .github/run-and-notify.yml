@@ -1,0 +1,33 @@
+name: 短线选股 + 钉钉通知
+
+on:
+  schedule:
+    # 北京时间 15:30（A股收盘后）对应 UTC 07:30，仅在周一至周五运行
+    - cron: "30 7 * * 1-5"
+  workflow_dispatch:  # 允许在 GitHub 网页上手动点击运行
+
+jobs:
+  pick-and-notify:
+    runs-on: ubuntu-latest   # 若 AKShare 访问国内数据源超时，改为 self-hosted（见 SETUP.md）
+    timeout-minutes: 30
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: pip install akshare pandas
+
+      - name: 运行选股（生成 result.csv）
+        run: python3 scripts/pick_stocks.py
+
+      - name: 发送钉钉通知
+        env:
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+          DINGTALK_SECRET:  ${{ secrets.DINGTALK_SECRET }}   # 不使用加签时留空即可
+          TOP_N: "20"
+        run: python3 notify_dingtalk.py
